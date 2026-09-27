@@ -237,7 +237,7 @@ class _HomePageState extends State<HomePage> {
                 detail: '点下面的「新增事项」记一条',
               )
             else ...[
-              const SizedBox(height: 26),
+              const SizedBox(height: 24),
               _SectionLabel('未完成 · ${pending.length}'),
               for (final t in pending)
                 _TaskTile(
@@ -246,7 +246,7 @@ class _HomePageState extends State<HomePage> {
                   onLongPress: () => _showTaskMenu(t),
                 ),
               if (done.isNotEmpty) ...[
-                const SizedBox(height: 26),
+                const SizedBox(height: 24),
                 _SectionLabel('已完成 · ${done.length}'),
                 for (final t in done)
                   _TaskTile(
@@ -298,7 +298,7 @@ class _StateView extends StatelessWidget {
               height: 22,
               child: CircularProgressIndicator(strokeWidth: 2.5),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
           ],
           Text(
             title,
@@ -306,15 +306,17 @@ class _StateView extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF6B7280),
+              // 灰阶三级制的第 2 级：对页面底 5.54:1
+              color: Color(0xFF5A6472),
             ),
           ),
           if (detail != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               detail!,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: Color(0xFFA0A6B0)),
+              // 灰阶三级制的第 3 级：对页面底 4.61:1
+              style: const TextStyle(fontSize: 13, color: Color(0xFF68707E)),
             ),
           ],
           if (actionLabel != null) ...[
@@ -364,7 +366,7 @@ class _Header extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 _todayLabel(now),
-                style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF5A6472)),
               ),
             ],
           ),
@@ -374,7 +376,7 @@ class _Header extends StatelessWidget {
           onPressed: () {},
           tooltip: '提醒设置',
           iconSize: 22,
-          color: const Color(0xFF6B7280),
+          color: const Color(0xFF5A6472),
           style: IconButton.styleFrom(
             backgroundColor: Colors.white,
             minimumSize: const Size(44, 44),
@@ -398,14 +400,16 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      // 左缩进 0：分组标签与卡片外沿同一条竖线（都落在 16 dp）
+      padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.3,
-          color: Color(0xFF6B7280),
+          // 灰阶三级制的第 2 级：对页面底 5.54:1
+          color: Color(0xFF5A6472),
         ),
       ),
     );
@@ -433,33 +437,61 @@ class _TaskTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final overdue = !task.done && task.date.isBefore(today);
+    // 归一化到零点再比：库里存的是毫秒时间戳，可能带时分秒
+    final day = DateTime(task.date.year, task.date.month, task.date.day);
+    final diff = day.difference(today).inDays;
+    final overdue = !task.done && diff < 0;
+    final dueToday = !task.done && diff == 0;
 
+    // 已完成不再单独降底色：#FAFBFC 相对白卡只有 1.05:1，肉眼等于没有。
+    // 完成态改由「删除线 + 第 3 级灰」承载，两项都过 AA
     final titleColor =
-        task.done ? const Color(0xFFA0A6B0) : const Color(0xFF1B1F24);
-    final dateColor = overdue
-        ? const Color(0xFFD97706)
-        : (task.done ? const Color(0xFFBCC1C9) : const Color(0xFFA0A6B0));
+        task.done ? const Color(0xFF68707E) : const Color(0xFF1B1F24);
 
-    return _TapToComplete(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+    // 日期色**必须随底色走**，不能一个值走天下：#68707E 在白卡上是 4.99:1，
+    // 但到了染色底上只有 3.96～4.16:1，低于 AA 4.5:1。三档各自的实测值：
+    final Color dateColor;
+    if (overdue) {
+      dateColor = const Color(0xFFB91C1C); // 对浅红底 5.13:1
+    } else if (dueToday) {
+      dateColor = const Color(0xFF5A6472); // 对浅绿底 5.00:1
+    } else {
+      dateColor = const Color(0xFF68707E); // 对白卡 4.99:1
+    }
+
+    // 底色**只染两档**：逾期红、今天绿，未来待办维持白卡。
+    // 理由不是审美：首页多数条目是未来待办，全染等于没有重点，红色会被
+    // 同浓度的色海淹掉，「逾期更显眼」这个目标反而落空。
+    // 半透明 10% 叠在页面底 #F4F6F8 上，实际渲染成 #F2E1E3 / #DEEEE7，
+    // 与页面底的明度差 21.7 / 17.6（改前白卡只有 8.1）。
+    final Color background;
+    final Border? border;
+    if (overdue) {
+      background = const Color(0x1ADC2626);
+      border = null;
+    } else if (dueToday) {
+      background = const Color(0x1A16A34A);
+      border = null;
+    } else {
+      // 白卡必须靠描边才有边界（白 vs 页面底只有 1.08:1）；
+      // 染色卡不再描边——色块自己成立，再叠一条灰线反而显脏
+      background = Colors.white;
+      border = Border.all(color: const Color(0xFFDCE2E9));
+    }
+
+    // 8 dp 间距放在手势区**外面**：放在里面的话，两卡之间的缝隙也算命中区，
+    // 点缝隙会把上一条标记完成（外层 Container 的底色负责边界）
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: _TapToComplete(
+        onTap: onTap,
+        onLongPress: onLongPress,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: task.done ? const Color(0xFFFAFBFC) : Colors.white,
+            color: background,
             borderRadius: BorderRadius.circular(14),
-            boxShadow: task.done
-                ? null
-                : const [
-                    BoxShadow(
-                      color: Color(0x0A101828),
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
+            border: border,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,7 +506,7 @@ class _TaskTile extends StatelessWidget {
                   decorationColor: titleColor,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 _dateLabel(task.date),
                 style: TextStyle(
@@ -637,6 +669,14 @@ class _NewTaskInput {
   final DateTime date;
 }
 
+/// 输入框描边。浅色主题下「靠填充色分辨边界」永远到不了 3:1（#F4F6F8 对面板
+/// 白底只有 1.08:1），而输入框属于**必须能认出边界**的控件，所以给一道真看得见
+/// 的线（#838A96 对白底 3.48:1、对自身填充 3.21:1）。
+OutlineInputBorder _inputBorder({double width = 1}) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: const Color(0xFF838A96), width: width),
+    );
+
 /// 新增与编辑共用的底部面板：只有「标题」一个输入框，加一行可改期的日期。
 ///
 /// 不设其它字段——对应 F3 第 1 条「不设其它必填字段」。
@@ -705,7 +745,7 @@ class _TaskSheetState extends State<_TaskSheet> {
       // 键盘弹出时把面板顶上去，否则输入框会被盖住
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -729,17 +769,17 @@ class _TaskSheetState extends State<_TaskSheet> {
                 hintText: '要做什么？',
                 filled: true,
                 fillColor: const Color(0xFFF4F6F8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
+                // 只靠填充色认不出输入框（对面板白底 1.08:1），补一道 3:1 的描边
+                border: _inputBorder(),
+                enabledBorder: _inputBorder(),
+                focusedBorder: _inputBorder(width: 1.5),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Row(
               children: [
                 const Icon(Icons.event_outlined,
-                    size: 18, color: Color(0xFF6B7280)),
+                    size: 18, color: Color(0xFF5A6472)),
                 const SizedBox(width: 8),
                 Text(
                   _dateLabel(_date),
@@ -752,7 +792,7 @@ class _TaskSheetState extends State<_TaskSheet> {
                 TextButton(onPressed: _pickDate, child: const Text('改期')),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             SizedBox(
               height: 50,
               width: double.infinity,
@@ -801,7 +841,7 @@ class _TaskMenu extends StatelessWidget {
         children: [
           // 把被长按的那条事项标题显示出来，避免长按错了条目还浑然不知
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             child: Text(
               title,
               maxLines: 1,
