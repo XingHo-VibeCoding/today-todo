@@ -157,6 +157,17 @@ class _HomePageState extends State<HomePage> {
       await updateTask(task.id!, title: input.title, date: input.date);
     }
     await _reload();
+    if (!mounted) return;
+    // 保存后要给回音：否则用户只能靠「条目是不是多了一条」来猜有没有存上。
+    // 形态跟 _toggleDone 的「已完成」保持一套（底部提示条、3 秒自动消失）。
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          task == null ? '已添加「${input.title}」' : '已保存「${input.title}」',
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   /// 长按整条框 → 弹出「编辑 / 删除」菜单，选完再分发。
