@@ -36,6 +36,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   sqflite: ^2.4.4
   path: ^1.9.1
+  # 日期选择器等系统组件的中文界面（Flutter SDK 自带包，不是第三方依赖）
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

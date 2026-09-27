@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'db.dart';
 
@@ -52,6 +53,14 @@ class TodayTodoApp extends StatelessWidget {
       title: '今日待办',
       // 关掉右上角的 DEBUG 角标：AC-2 要求首屏只有四类元素，角标算第五类
       debugShowCheckedModeBanner: false,
+      // 日期选择器的中文界面：不挂这三个代理，showDatePicker 的月份和按钮全是英文
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('zh'), Locale('en')],
+      locale: const Locale('zh'),
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
@@ -214,7 +223,9 @@ class _HomePageState extends State<HomePage> {
             if (_loadFailed)
               _StateView(
                 title: '数据打不开',
-                detail: '点「重试」再来一次；若一直失败，请重启 App 后再试。',
+                // 手动换行（不写分号）：整句在 411 dp 下会自动折行，
+                // 把「试。」这种孤字扔到第二行
+                detail: '点「重试」再来一次\n若一直失败，请重启 App 后再试。',
                 actionLabel: '重试',
                 onAction: _reload,
               )
