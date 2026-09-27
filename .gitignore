@@ -3,3 +3,6 @@
 
 # WorkBuddy 本地工具数据（项目笔记等），不进入代码仓库
 .workbuddy/
+
+# Flutter 工具状态文件（本目录曾跑过 flutter 命令留下的），不进入代码仓库
+.flutter_tool_state
