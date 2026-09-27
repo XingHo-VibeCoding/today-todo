@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'db.dart';
+import 'design.dart';
 
 /// 「今日待办」首页（阶段 3 · 第 4 步）
 ///
@@ -435,49 +436,9 @@ class _TaskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    // 归一化到零点再比：库里存的是毫秒时间戳，可能带时分秒
-    final day = DateTime(task.date.year, task.date.month, task.date.day);
-    final diff = day.difference(today).inDays;
-    final overdue = !task.done && diff < 0;
-    final dueToday = !task.done && diff == 0;
-
-    // 已完成不再单独降底色：#FAFBFC 相对白卡只有 1.05:1，肉眼等于没有。
-    // 完成态改由「删除线 + 第 3 级灰」承载，两项都过 AA
-    final titleColor =
-        task.done ? const Color(0xFF68707E) : const Color(0xFF1B1F24);
-
-    // 日期色**必须随底色走**，不能一个值走天下：#68707E 在白卡上是 4.99:1，
-    // 但到了染色底上只有 3.96～4.16:1，低于 AA 4.5:1。三档各自的实测值：
-    final Color dateColor;
-    if (overdue) {
-      dateColor = const Color(0xFFB91C1C); // 对浅红底 5.13:1
-    } else if (dueToday) {
-      dateColor = const Color(0xFF5A6472); // 对浅绿底 5.00:1
-    } else {
-      dateColor = const Color(0xFF68707E); // 对白卡 4.99:1
-    }
-
-    // 底色**只染两档**：逾期红、今天绿，未来待办维持白卡。
-    // 理由不是审美：首页多数条目是未来待办，全染等于没有重点，红色会被
-    // 同浓度的色海淹掉，「逾期更显眼」这个目标反而落空。
-    // 半透明 10% 叠在页面底 #F4F6F8 上，实际渲染成 #F2E1E3 / #DEEEE7，
-    // 与页面底的明度差 21.7 / 17.6（改前白卡只有 8.1）。
-    final Color background;
-    final Border? border;
-    if (overdue) {
-      background = const Color(0x1ADC2626);
-      border = null;
-    } else if (dueToday) {
-      background = const Color(0x1A16A34A);
-      border = null;
-    } else {
-      // 白卡必须靠描边才有边界（白 vs 页面底只有 1.08:1）；
-      // 染色卡不再描边——色块自己成立，再叠一条灰线反而显脏
-      background = Colors.white;
-      border = Border.all(color: const Color(0xFFDCE2E9));
-    }
+    // 配色规则全部收在 design.dart 的 TaskCardStyle 里：底色 / 描边 / 标题色 /
+    // 日期色 / 逾期加粗一次给全，这里不再自己判断
+    final style = TaskCardStyle.of(task);
 
     // 8 dp 间距放在手势区**外面**：放在里面的话，两卡之间的缝隙也算命中区，
     // 点缝隙会把上一条标记完成（外层 Container 的底色负责边界）
@@ -489,9 +450,9 @@ class _TaskTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: background,
+            color: style.background,
             borderRadius: BorderRadius.circular(14),
-            border: border,
+            border: style.border,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -501,9 +462,9 @@ class _TaskTile extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: titleColor,
+                  color: style.titleColor,
                   decoration: task.done ? TextDecoration.lineThrough : null,
-                  decorationColor: titleColor,
+                  decorationColor: style.titleColor,
                 ),
               ),
               const SizedBox(height: 4),
@@ -511,8 +472,9 @@ class _TaskTile extends StatelessWidget {
                 _dateLabel(task.date),
                 style: TextStyle(
                   fontSize: 13,
-                  color: dateColor,
-                  fontWeight: overdue ? FontWeight.w600 : FontWeight.w400,
+                  color: style.dateColor,
+                  fontWeight:
+                      style.dateBold ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
             ],
