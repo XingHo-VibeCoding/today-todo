@@ -125,10 +125,16 @@ class _HomePageState extends State<HomePage> {
     await setDone(task.id!, target);
     await _reload();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    // 新提示顶掉旧的：否则连点会排队播，连点 5 次就堵屏 16 秒。
+    messenger.removeCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
         content: Text(target ? '已完成「${task.title}」' : '已恢复「${task.title}」'),
         duration: const Duration(seconds: 3),
+        // persist 默认 = action != null，也就是「带撤销按钮就永不自动消失」。
+        // 这里显式关掉，才符合 AC-14「完成后 3 秒内仍可见且可撤销」。
+        persist: false,
         action: SnackBarAction(
           label: '撤销',
           onPressed: () async {
@@ -160,7 +166,9 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     // 保存后要给回音：否则用户只能靠「条目是不是多了一条」来猜有没有存上。
     // 形态跟 _toggleDone 的「已完成」保持一套（底部提示条、3 秒自动消失）。
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.removeCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           task == null ? '已添加「${input.title}」' : '已保存「${input.title}」',
@@ -383,9 +391,19 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
-        // 提醒设置入口：本步只是占位，点了没有反应（F2 不在本期 MVP 内）
+        // 提醒设置入口：F2 不在本期 MVP 内，但点了必须给一句诚实的回音——
+        // 只有涟漪的话，用户会以为提醒已经设置成功。
         IconButton(
-          onPressed: () {},
+          onPressed: () {
+            final messenger = ScaffoldMessenger.of(context);
+            messenger.removeCurrentSnackBar();
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('提醒功能还没做，暂时需要自己看清单'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          },
           tooltip: '提醒设置',
           iconSize: 22,
           color: const Color(0xFF5A6472),
