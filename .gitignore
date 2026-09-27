@@ -54,3 +54,7 @@ android/local.properties
 *.keystore
 *.jks
 key.properties
+
+# 环境变量与本地工具数据（沿用文档仓库规则）
+.env
+.workbuddy/
