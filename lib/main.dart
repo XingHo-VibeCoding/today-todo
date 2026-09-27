@@ -70,9 +70,13 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  /// 从数据库读出来的全部事项。null = 还没读出来——此时不渲染列表区，
+  /// 从数据库读出来的全部事项。null = 还没读出来——此时显示加载态，
   /// 免得先闪一下「未完成 · 0」再跳成真实条数。
   List<Task>? _tasks;
+
+  /// 是否读库失败。异常本身只进日志（`debugPrint`），**不往界面上贴**——
+  /// 用户看到 `DatabaseException(...)` 这种原文没有任何意义。
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -81,9 +85,23 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// 重新读库并重画。新增、完成、撤销之后都要走一遍。
+  ///
+  /// **读库失败不能让它抛出去**：抛出去在 debug 是红屏、在 release 是白屏，
+  /// 用户看到的只是「打开就没东西」。这里接住、置上 [_loadFailed]，由界面给出
+  /// 说明和「重试」——重试就是再跑一次本方法。异常详情写进日志，不上面。
   Future<void> _reload() async {
-    final list = await loadTasks();
-    if (mounted) setState(() => _tasks = list);
+    try {
+      final list = await loadTasks();
+      if (mounted) {
+        setState(() {
+          _tasks = list;
+          _loadFailed = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('读库失败：$e');
+      if (mounted) setState(() => _loadFailed = true);
+    }
   }
 
   /// 点按整条框 → 切换完成状态。
@@ -193,7 +211,21 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
           children: [
             _Header(now: DateTime.now()),
-            if (_tasks != null) ...[
+            if (_loadFailed)
+              _StateView(
+                title: '数据打不开',
+                detail: '点「重试」再来一次；若一直失败，请重启 App 后再试。',
+                actionLabel: '重试',
+                onAction: _reload,
+              )
+            else if (_tasks == null)
+              const _StateView(title: '正在读取…', busy: true)
+            else if (list.isEmpty)
+              const _StateView(
+                title: '今天没有待办',
+                detail: '点下面的「新增事项」记一条',
+              )
+            else ...[
               const SizedBox(height: 26),
               _SectionLabel('未完成 · ${pending.length}'),
               for (final t in pending)
@@ -217,6 +249,79 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       bottomNavigationBar: _AddBar(onPressed: () => _openTaskSheet()),
+    );
+  }
+}
+
+/// 列表区的三种「非数据」状态：加载中 / 空 / 读库失败。
+///
+/// 三种形状一样——居中一段主文案，可能再带一行说明和一个按钮——所以只写这一个
+/// 组件，换字不换结构。它们都是**顶替**列表区，不是首屏新增的常驻元素，
+/// 因此不违反 AC-2「首屏只四类元素」。
+class _StateView extends StatelessWidget {
+  const _StateView({
+    required this.title,
+    this.detail,
+    this.actionLabel,
+    this.onAction,
+    this.busy = false,
+  });
+
+  final String title;
+  final String? detail;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  /// 加载态：文案上方加一个转圈。
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 64, 24, 0),
+      child: Column(
+        children: [
+          if (busy) ...[
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(height: 14),
+          ],
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+          if (detail != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              detail!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: Color(0xFFA0A6B0)),
+            ),
+          ],
+          if (actionLabel != null) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: Text(actionLabel!),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

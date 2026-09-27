@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
@@ -49,15 +50,34 @@ class Task {
 /// 全局只开一次数据库连接，之后复用（`??=` 表示「没有才开」）
 Database? _db;
 
-/// 打开数据库文件；数据库不存在时，系统会自动走一遍 [_onCreate]
+/// 打开数据库文件。
+///
+/// **分两种情况，别合并成一句**：
+///   - 文件不存在（首次安装）→ 带 `version` 打开，系统跑一遍 [_onCreate] 建表
+///   - 文件已存在 → **不带 `version`** 直接打开
+///
+/// 第二种为什么不带 `version`：只要带了版本号，安卓就会去读库里的版本号；
+/// 文件损坏读不到时，它会当成版本 0 并**自动删库重建**——用户的真实事项会被
+/// 悄悄换成示例数据，界面上连一点异常都看不到。不带版本号打开就不会触发
+/// 这套逻辑，坏文件会在第一次查询时抛出来，交给界面显示错误态。
+///
+/// 代价记在这里：以后加字段时不能再靠改 [_dbVersion] 自动升级，
+/// 那时要单独写一段「读旧版本号 → 手动迁移」的代码。
 Future<Database> _open() async {
   final path = p.join(await getDatabasesPath(), _dbFileName);
-  return openDatabase(path, version: _dbVersion, onCreate: _onCreate);
+  if (!await databaseExists(path)) {
+    return openDatabase(path, version: _dbVersion, onCreate: _onCreate);
+  }
+  return openDatabase(path);
 }
 
-/// 建表 + 写入示例数据。**只在数据库第一次被创建时执行一次**，
-/// 之后每次打开 App 都不会再跑——这正是「数据能留下来」和「示例不会被重复插入」
-/// 两件事的实现方式。
+/// 建表；开发期版本再顺手写几条示例数据。
+///
+/// **只在数据库文件第一次被创建时执行一次**，之后每次打开 App 都不会再跑——
+/// 这就是「数据能留下来」和「示例不会被重复插入」的实现方式。
+///
+/// 示例数据只在 debug 构建里种：它本来是为了开发时能立刻看到列表长什么样，
+/// 不该出现在装给真实用户的包里——用户第一次打开不该看到 4 条不属于自己的事项。
 Future<void> _onCreate(Database db, int version) async {
   await db.execute('''
     CREATE TABLE $_table (
@@ -69,14 +89,16 @@ Future<void> _onCreate(Database db, int version) async {
     )
   ''');
 
-  for (final row in _seedRows()) {
-    await db.insert(_table, row);
+  if (kDebugMode) {
+    for (final row in _seedRows()) {
+      await db.insert(_table, row);
+    }
   }
 }
 
-/// 开发期的示例数据，和第 1 步界面里那 4 条完全一致——
+/// 开发期的示例数据（只在 debug 构建写入，见 [_onCreate]），与第 1 步界面里那 4 条一致——
 /// 这样一对比就能看出「数据源换成数据库了，界面应该长得一模一样」。
-/// 等第 4 步接上删除，可以自己把这几条清掉。
+/// 想清掉就在 App 里长按删除；想在模拟器里铺受控数据，用 `D:\dev\make_db.py`。
 List<Map<String, Object?>> _seedRows() {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
