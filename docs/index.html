@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f6f8">
+  <title>今日待办</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <main class="app">
+
+    <!-- ① 标题 + 提醒设置入口 -->
+    <header class="app__header">
+      <div>
+        <h1 class="app__title">今日待办</h1>
+        <p class="app__date" id="today-text"></p>
+      </div>
+      <button class="icon-btn" type="button" id="btn-remind" title="提醒设置" aria-label="提醒设置">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- ② 事项列表：未完成（永远排在已完成之前） -->
+    <section class="list-section">
+      <h2 class="list-label">未完成 · <span id="count-pending">0</span></h2>
+      <ul class="list" id="list-pending"></ul>
+    </section>
+
+    <!-- ② 事项列表：已完成 -->
+    <section class="list-section" id="section-done">
+      <h2 class="list-label">已完成 · <span id="count-done">0</span></h2>
+      <ul class="list" id="list-done"></ul>
+    </section>
+
+  </main>
+
+  <!-- ③ 新增入口 -->
+  <div class="fab-wrap">
+    <button class="add-btn" type="button" id="btn-add">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" aria-hidden="true">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      新增事项
+    </button>
+  </div>
+
+  <!-- ④ 新增 / 编辑表单：从底部滑出，新增和编辑共用这一个 -->
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet__mask" id="sheet-mask"></div>
+    <form class="sheet__panel" id="task-form">
+      <h2 class="sheet__title" id="sheet-title">新增事项</h2>
+
+      <label class="field">
+        <span class="field__label">要做什么</span>
+        <input class="field__input" type="text" id="input-title"
+               placeholder="例：水卡充值" autocomplete="off">
+      </label>
+
+      <label class="field">
+        <span class="field__label">什么时候做</span>
+        <input class="field__input" type="date" id="input-date">
+      </label>
+
+      <div class="sheet__actions">
+        <button class="btn btn--ghost" type="button" id="btn-cancel">取消</button>
+        <button class="btn btn--primary" type="submit" id="btn-save">保存</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ⑤ 删除二次确认（AC-15：不做无提示的直接删除） -->
+  <div class="sheet" id="confirm" hidden>
+    <div class="sheet__mask" id="confirm-mask"></div>
+    <div class="sheet__panel">
+      <h2 class="sheet__title">删除这条事项？</h2>
+      <p class="sheet__text" id="confirm-text"></p>
+      <div class="sheet__actions">
+        <button class="btn btn--ghost" type="button" id="btn-del-cancel">取消</button>
+        <button class="btn btn--danger" type="button" id="btn-del-ok">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
