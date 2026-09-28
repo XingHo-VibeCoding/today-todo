@@ -72,6 +72,16 @@ class TodayTodoApp extends StatelessWidget {
   }
 }
 
+/// F5 首页筛选的三个维度。只改「显示哪些」，不改排序（AC-23），
+/// 也只存内存——App 关掉重开就回到 [all]（TECH_DESIGN 3.4）。
+enum _Filter { all, pending, done }
+
+const Map<_Filter, String> _filterLabels = {
+  _Filter.all: '全部',
+  _Filter.pending: '待办',
+  _Filter.done: '已完成',
+};
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -87,6 +97,10 @@ class _HomePageState extends State<HomePage> {
   /// 是否读库失败。异常本身只进日志（`debugPrint`），**不往界面上贴**——
   /// 用户看到 `DatabaseException(...)` 这种原文没有任何意义。
   bool _loadFailed = false;
+
+  /// 当前筛选维度（F5）。默认 [all]，等于 F1 的原始行为。
+  /// 只存内存不落库，所以重开 App 会回到默认（TECH_DESIGN 3.4 / AC-25）。
+  _Filter _filter = _Filter.all;
 
   @override
   void initState() {
@@ -230,9 +244,21 @@ class _HomePageState extends State<HomePage> {
     // 未完成：按日期升序 —— 越早到期的越靠前，逾期未完成的自然排最上面（AC-5）
     final pending = list.where((t) => !t.done).toList()
       ..sort((a, b) => a.date.compareTo(b.date));
-    // 已完成：永远排在未完成之后（AC-3）
-    final done = list.where((t) => t.done).toList()
+    // 已完成：永远排在未完成之后（AC-3）。
+    // 已被凌晨 4:00 清空归档的不再显示 —— 已完成区只留「今天标记完成的」（F1 清单范围）。
+    final done = list.where((t) => t.done && !t.archived).toList()
       ..sort((a, b) => b.date.compareTo(a.date));
+
+    // F5：筛选只决定「显示哪几组」，**不动每组内部的排序**（AC-23）。
+    //   - 选「待办」→ 藏掉已完成组
+    //   - 选「已完成」→ 藏掉未完成组
+    //   - 选「全部」→ 两组都显示，与 F1 完全一致
+    final showPending = _filter != _Filter.done;
+    final showDone = _filter != _Filter.pending;
+    final shownCount =
+        (showPending ? pending.length : 0) + (showDone ? done.length : 0);
+    // 有数据、但当前筛选下一条都显示不出来 → 必须出空态（AC-24）
+    final filteredEmpty = list.isNotEmpty && shownCount == 0;
 
     return Scaffold(
       body: SafeArea(
@@ -251,29 +277,46 @@ class _HomePageState extends State<HomePage> {
               )
             else if (_tasks == null)
               const _StateView(title: '正在读取…', busy: true)
-            else if (list.isEmpty)
-              const _StateView(
-                title: '今天没有待办',
-                detail: '点下面的「新增事项」记一条',
-              )
             else ...[
-              const SizedBox(height: 24),
-              _SectionLabel('未完成 · ${pending.length}'),
-              for (final t in pending)
-                _TaskTile(
-                  task: t,
-                  onTap: () => _toggleDone(t),
-                  onLongPress: () => _showTaskMenu(t),
-                ),
-              if (done.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                _SectionLabel('已完成 · ${done.length}'),
-                for (final t in done)
-                  _TaskTile(
-                    task: t,
-                    onTap: () => _toggleDone(t),
-                    onLongPress: () => _showTaskMenu(t),
-                  ),
+              const SizedBox(height: 16),
+              // 筛选栏只在数据读出来之后才出现——加载中和读库失败时它无处可筛
+              _FilterBar(
+                value: _filter,
+                onChanged: (f) => setState(() => _filter = f),
+              ),
+              if (list.isEmpty)
+                const _StateView(
+                  title: '今天没有待办',
+                  detail: '点下面的「新增事项」记一条',
+                )
+              else if (filteredEmpty)
+                _StateView(
+                  title: _filter == _Filter.done ? '还没有已完成的事项' : '没有未完成的事项',
+                  detail: _filter == _Filter.done
+                      ? '点一条事项的整条框，就算完成了'
+                      : '今天的事项都做完了',
+                )
+              else ...[
+                if (showPending && pending.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _SectionLabel('未完成 · ${pending.length}'),
+                  for (final t in pending)
+                    _TaskTile(
+                      task: t,
+                      onTap: () => _toggleDone(t),
+                      onLongPress: () => _showTaskMenu(t),
+                    ),
+                ],
+                if (showDone && done.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _SectionLabel('已完成 · ${done.length}'),
+                  for (final t in done)
+                    _TaskTile(
+                      task: t,
+                      onTap: () => _toggleDone(t),
+                      onLongPress: () => _showTaskMenu(t),
+                    ),
+                ],
               ],
             ],
           ],
@@ -417,6 +460,61 @@ class _Header extends StatelessWidget {
           icon: const Icon(Icons.notifications_none),
         ),
       ],
+    );
+  }
+}
+
+/// ①′ 筛选栏（F5）：全部 / 待办 / 已完成，三选一。
+///
+/// 用 Material 3 自带的 [SegmentedButton]——「三选一互斥」「选中态样式」
+/// 「语义标签（屏幕阅读器能读出来）」它自己都保证了，不用再各写一遍。
+/// 只改「显示哪些」，不改排序（AC-23）；状态只存内存，不落库（TECH_DESIGN 3.4）。
+class _FilterBar extends StatelessWidget {
+  // 不写 super.key：私有组件没人会传 key，写了只会多一条 analyzer 告警
+  const _FilterBar({required this.value, required this.onChanged});
+
+  final _Filter value;
+  final ValueChanged<_Filter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SegmentedButton<_Filter>(
+        segments: [
+          for (final f in _Filter.values)
+            ButtonSegment<_Filter>(value: f, label: Text(_filterLabels[f]!)),
+        ],
+        selected: {value},
+        onSelectionChanged: (s) => onChanged(s.first),
+        // 不显示钩子图标：三个中文短词各自够清楚，多一个图标反而挤
+        showSelectedIcon: false,
+        style: ButtonStyle(
+          // 可点区高度不低于 44 dp（AC-22）；宽度靠左右 18 dp 内边距撑过 44
+          minimumSize: const WidgetStatePropertyAll(Size(0, 44)),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 18),
+          ),
+          textStyle: const WidgetStatePropertyAll(
+            TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          // 选中＝蓝底白字（实测 5.17:1）；未选中＝白底灰字（6.00:1）。
+          // 蓝是 App 里既有的「可操作色」，与卡片两档染色（红 / 绿）不冲突。
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? const Color(0xFF2563EB)
+                : Colors.white,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? Colors.white
+                : const Color(0xFF5A6472),
+          ),
+          side: const WidgetStatePropertyAll(
+            BorderSide(color: Color(0xFFDCE2E9)),
+          ),
+        ),
+      ),
     );
   }
 }
