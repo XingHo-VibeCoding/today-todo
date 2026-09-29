@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'about_page.dart';
 import 'db.dart';
 import 'design.dart';
 
@@ -67,6 +68,12 @@ class TodayTodoApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
         scaffoldBackgroundColor: const Color(0xFFF4F6F8),
       ),
+      // 命名路由表（Day 13）。目前只有关于页一个二级页面——用 Flutter 自带的
+      // Navigator 够用了，不引 go_router：路由只有一条，用不上那套拦截、嵌套、
+      // 参数解析的能力。
+      routes: {
+        AboutPage.routeName: (_) => const AboutPage(),
+      },
       home: const HomePage(),
     );
   }
@@ -403,6 +410,10 @@ class _StateView extends StatelessWidget {
 }
 
 /// ① 标题 + 当天日期 + 提醒设置入口
+///
+/// 标题区（Day 13 起）同时是**关于页的入口**：点它 push 到二级页面。
+/// 为什么不另加一个图标按钮——AC-2 写死了首屏只有五类元素，再加就是第六类；
+/// 而标题区本身就有约 52 dp 高，直接满足了 48 dp 的可点区下限，不用额外撑高。
 class _Header extends StatelessWidget {
   const _Header({super.key, required this.now});
 
@@ -414,24 +425,37 @@ class _Header extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '今日待办',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
-                  color: Color(0xFF1B1F24),
-                ),
+          // 加上 button 语义和提示，屏幕阅读器才会念「今日待办 9月29日 周二，
+          // 按钮，查看关于」，否则一个能干活的区域在读屏里是完全静默的
+          child: Semantics(
+            button: true,
+            hint: '查看关于',
+            child: InkWell(
+              onTap: () => Navigator.of(context).pushNamed(AboutPage.routeName),
+              borderRadius: BorderRadius.circular(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '今日待办',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                      color: Color(0xFF1B1F24),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _todayLabel(now),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF5A6472),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                _todayLabel(now),
-                style: const TextStyle(fontSize: 14, color: Color(0xFF5A6472)),
-              ),
-            ],
+            ),
           ),
         ),
         // 提醒设置入口：F2 不在本期 MVP 内，但点了必须给一句诚实的回音——
