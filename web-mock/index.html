@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="E6C2iAY7bD43GmeBV1jOgr">
+<head data-page-node-id="h9IS2cHPWCctQ1AtMhDolr">
+<meta charset="UTF-8" data-page-node-id="CeI3KBlmlZ69HJJVXIT1WJ">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" data-page-node-id="z3x9ZKZXqM7xZKHGXTPsg8">
+<title>今日待办</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #F4F6F8;
+    color: #1B1F24;
+    font: 400 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 411px; margin: 0 auto; padding: 24px 16px 32px; min-height: 100vh; }
+  header { margin-bottom: 20px; }
+  h1 { font-size: 22px; font-weight: 500; }
+  .sub { margin-top: 4px; font-size: 13px; color: #68707E; }
+  .filter { display: flex; gap: 8px; margin-bottom: 20px; }
+  .filter button {
+    flex: 1; min-height: 34px; border-radius: 8px; font: inherit; font-size: 13px;
+    border: 1px solid #DCE2E9; background: #fff; color: #5A6472; cursor: pointer;
+  }
+  .filter button.on { background: #2563EB; border-color: #2563EB; color: #fff; }
+  .list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .task {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 16px; border-radius: 12px; background: #fff; border: 1px solid #DCE2E9;
+  }
+  .task .t { font-size: 16px; }
+  .task .d { font-size: 13px; color: #68707E; white-space: nowrap; }
+  .task.overdue { background: #F1E1E3; border-color: transparent; }
+  .task.overdue .d { color: #B91C1C; font-weight: 500; }
+  .task.today { background: #DDEEE7; border-color: transparent; }
+  .task.today .d { color: #5A6472; }
+  .task.done .t { color: #68707E; text-decoration: line-through; }
+  .add {
+    display: block; width: 100%; margin-top: 20px; padding: 14px;
+    border: 0; border-radius: 12px; background: #2563EB; color: #fff;
+    font: inherit; font-size: 15px; cursor: pointer;
+  }
+</style>
+</head>
+<body data-page-node-id="aljOsUmUuXu84PvpXpsWHk">
+<div class="app" data-page-node-id="FvKqCxZF1Ft7NLmbLBzpbB">
+  <header data-page-node-id="hRdvzDwiusJNUy4gqacSth">
+    <h1 data-page-node-id="gtcY2MMThbQl7RIEmxsMIo">今日待办</h1>
+    <p class="sub" id="todayLabel" data-page-node-id="Lo73iFf0UGjX5Xs4uXZEW7"></p>
+  </header>
+
+  <nav class="filter" data-page-node-id="BFknnmUdBWuCn5sBzEVZk6">
+    <button class="on" type="button" data-filter="all" data-page-node-id="EGs4X93KBoXQuVMBTUMDlo">全部</button>
+    <button type="button" data-filter="todo" data-page-node-id="VEf2PUVITFdHFrnPfADNBp">待办</button>
+    <button type="button" data-filter="done" data-page-node-id="dCwRVMIO8KjoPW16RRFVKJ">已完成</button>
+  </nav>
+
+  <ul class="list" data-page-node-id="jjvwbR05cNsgpRW6GTcVgx">
+    <li class="task overdue" data-page-node-id="SS9ka4vnJyjN7kFOoBG3V0"><span class="t" data-page-node-id="5Q1FH0kDn2xFlVnHpJ2sYi">水卡充值</span><span class="d" data-day="-1" data-page-node-id="F4Q0RbvnPxJQyZxTZOcGlC"></span></li>
+    <li class="task today" data-page-node-id="ffIiqvnUNFjvpxBU5nsInP"><span class="t" data-page-node-id="ZgY996c5fcm7JMtxmUDa6H">交实验报告</span><span class="d" data-day="0" data-page-node-id="vUvD8QWF5F0rpNyctc4N5w"></span></li>
+    <li class="task" data-page-node-id="pD6oggCrgpBEsb0frpIUP3"><span class="t" data-page-node-id="SccA9DdBaheOuif6z14J7z">洗衣服</span><span class="d" data-day="2" data-page-node-id="7xAGmikhA0pRhw6YvD5gx5"></span></li>
+    <li class="task done" data-page-node-id="7eOxAS8ysEjuDnRB5m79nQ"><span class="t" data-page-node-id="DTDAAHEKqoe72mwyaOfBFa">倒垃圾</span><span class="d" data-day="-1" data-page-node-id="LIRlgetzRU5Z4qjlmdFwtt"></span></li>
+  </ul>
+
+  <button class="add" type="button" data-page-node-id="Z4QiEfF8o0Cn8HWBBnjuGT">+ 新增事项</button>
+</div>
+
+<script>
+  var week = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  var now = new Date();
+  document.getElementById('todayLabel').textContent =
+    (now.getMonth() + 1) + '月' + now.getDate() + '日 ' + week[now.getDay()];
+
+  function label(offset) {
+    if (offset === 0) return '今天';
+    if (offset === 1) return '明天';
+    if (offset === -1) return '昨天';
+    var d = new Date();
+    d.setDate(d.getDate() + offset);
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+  document.querySelectorAll('[data-day]').forEach(function (el) {
+    el.textContent = label(Number(el.dataset.day));
+  });
+
+  document.querySelectorAll('.filter button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.filter button').forEach(function (b) { b.classList.remove('on'); });
+      btn.classList.add('on');
+      var f = btn.dataset.filter;
+      document.querySelectorAll('.list .task').forEach(function (li) {
+        var isDone = li.classList.contains('done');
+        var show = f === 'all' || (f === 'todo' && !isDone) || (f === 'done' && isDone);
+        li.style.display = show ? '' : 'none';
+      });
+    });
+  });
+</script>
+</body>
+</html>
